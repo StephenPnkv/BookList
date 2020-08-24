@@ -3,7 +3,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	//"log"
 	"net/http"
 	"github.com/gorilla/mux"
 	"encoding/json"
@@ -42,6 +42,7 @@ func main(){
 func getBooks(w http.ResponseWriter, r *http.Request){
 	json.NewEncoder(w).Encode(books)
 }
+
 func addBook(w http.ResponseWriter, r *http.Request){
 	var book Book 
 	_ = json.NewDecoder(r.Body).Decode(&book)
@@ -50,6 +51,7 @@ func addBook(w http.ResponseWriter, r *http.Request){
 
 	json.NewEncoder(w).Encode(books)
 }
+
 func getBook(w http.ResponseWriter, r *http.Request){
 	params := mux.Vars(r)
 	i, _ := strconv.Atoi(params["id"])
@@ -62,10 +64,27 @@ func getBook(w http.ResponseWriter, r *http.Request){
 }
 
 func updateBook(w http.ResponseWriter, r *http.Request){
-	log.Println("updatebook is called.") 
+	var book Book 
+
+	json.NewDecoder(r.Body).Decode(&book)
+	for i, item := range books{
+		if item.ID == book.ID{
+			books[i] = book
+		}
+	} 
+	json.NewEncoder(w).Encode(books)
 }
+
 func removeBook(w http.ResponseWriter, r *http.Request){
-	log.Println("removebook is called.")
+	params := mux.Vars(r) 
+	id, _ := strconv.Atoi(params["id"])
+
+	for i, item := range books{
+		if item.ID == id{
+			books = append(books[:i], books[i+1:]...)
+		}
+	} 
+	json.NewEncoder(w).Encode(books)
 }
 
 
