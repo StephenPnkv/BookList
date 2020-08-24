@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"github.com/gorilla/mux"
+	"encoding/json"
+	"strconv"
 )
 
 type Book struct {
@@ -18,6 +20,14 @@ type Book struct {
 var books []Book 
 
 func main(){
+
+	books = append(books,Book{ID: 1, Title: "Pointers", Author: "Mr. Pointer", Year: "2012"},
+		Book{ID: 2, Title: "Recursion", Author: "Mr. Recursion", Year: "2019"},
+		Book{ID: 3, Title: "Concurrency", Author: "Mr. Concurrency", Year: "2014"},
+		Book{ID: 4, Title: "Go: Data Structures & Algorithms", Author: "Mr. Data", Year: "2015"},
+		Book{ID: 5, Title: "Hacking with Go", Author: "Mr. Hacker", Year: "2019"},
+	)
+
 	router := mux.NewRouter() 
 	router.HandleFunc("/books", getBooks).Methods("GET")
 	router.HandleFunc("/books", addBook).Methods("POST")
@@ -29,21 +39,33 @@ func main(){
 	http.ListenAndServe(port,router)
 }
 
-func getBook(w http.ResponseWriter, r *http.Request){
-	log.Println("getbook is called.")
+func getBooks(w http.ResponseWriter, r *http.Request){
+	json.NewEncoder(w).Encode(books)
 }
 func addBook(w http.ResponseWriter, r *http.Request){
-	log.Println("addbook is called.")
+	var book Book 
+	_ = json.NewDecoder(r.Body).Decode(&book)
+
+	books = append(books, book)
+
+	json.NewEncoder(w).Encode(books)
+}
+func getBook(w http.ResponseWriter, r *http.Request){
+	params := mux.Vars(r)
+	i, _ := strconv.Atoi(params["id"])
+
+	for _, book := range books{
+		if book.ID == i{
+			json.NewEncoder(w).Encode(&book)
+		}
+	}
 }
 
 func updateBook(w http.ResponseWriter, r *http.Request){
-	log.Println("updatebook is called.")
+	log.Println("updatebook is called.") 
 }
 func removeBook(w http.ResponseWriter, r *http.Request){
 	log.Println("removebook is called.")
-}
-func getBooks(w http.ResponseWriter, r *http.Request){
-	log.Println("getbooks is called.")
 }
 
 
