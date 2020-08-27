@@ -32,12 +32,6 @@ type Book struct {
 
 var books []Book 
 
-func logFatal(err error){
-	if err != nil{
-		log.Fatal(err)
-	}
-}
-
 //Load env variables
 var mongoURI, dbName, colName, port string 
 
@@ -49,6 +43,11 @@ func init(){
 	port = os.Getenv("PORT")
 }
 
+func logError(err error){
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
 func getMongoDBConnection()(*mongo.Client,error){
 	//Helper function connects a client to mongodb, returns 
@@ -57,15 +56,12 @@ func getMongoDBConnection()(*mongo.Client,error){
 	//Connect to client
 	clientOptions := options.Client().ApplyURI(mongoURI)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
-	
-	if err != nil{
-		log.Fatal(err)
-	}
+	logError(err)
+
 	//Test connection
 	err = client.Ping(context.TODO(),nil)
-	if err != nil{
-		log.Fatal(err)
-	}
+	logError(err)
+
 	//Return client and err
 	return client, err 
 }
@@ -74,13 +70,12 @@ func getMongoDBCollection()(*mongo.Collection, error){
 	//Function establishes a connection to mongodb and returns the collection and error.
 
 	client, err := getMongoDBConnection()
-	if err != nil{
-		log.Fatal(err)
-	}
+	logError(err)
 
 	collection := client.Database(dbName).Collection(colName)
 	return collection, err 
 }
+
 
 func main(){
 
@@ -107,9 +102,7 @@ func getBooks(res http.ResponseWriter, req *http.Request){
 	res.Header().Add("content-type", "application/json")
 	collection, err := getMongoDBCollection()
 	var allBooks []Book 
-	if err != nil {
-		log.Fatal(err)
-	}
+	logError(err)
 	ctx, cancel := context.WithTimeout(context.TODO(),10*time.Second)
 	defer cancel()
 	cursor, e := collection.Find(ctx,bson.M{})
@@ -140,9 +133,7 @@ func addBook(res http.ResponseWriter, req *http.Request){
 	fmt.Printf("Added Book - ID: %d | title: %s | author: %s | year: %s\n", book.ID, book.Title, book.Author, book.Year)
 
 	collection, err := getMongoDBCollection()
-	if err != nil{
-		log.Fatal(err)
-	}
+	logError(err)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	result, _ := collection.InsertOne(ctx,book)
@@ -159,9 +150,8 @@ func getBook(res http.ResponseWriter, req *http.Request){
 
 	filter := bson.D{primitive.E{Key: "id", Value: id}}
 	collection, err := getMongoDBCollection()
-	if err != nil{
-		log.Fatal(err)
-	}
+	logError(err)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	err = collection.FindOne(ctx,filter).Decode(&book)
@@ -195,9 +185,7 @@ func updateBook(res http.ResponseWriter, req *http.Request){
 	}
 	
 	collection, err := getMongoDBCollection()
-	if err != nil{
-		log.Fatal(err)
-	}
+	logError(err)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	result, e := collection.UpdateOne(
@@ -221,15 +209,11 @@ func removeBook(res http.ResponseWriter, req *http.Request){
 	fmt.Printf("Removed Book - ID: %d\n", id)
 
 	collection, err := getMongoDBCollection()
-	if err != nil {
-		log.Fatal(err)
-	}
+	logError(err)
 	ctx, cancel := context.WithTimeout(context.TODO(),10*time.Second)
 	defer cancel()
 	result, e := collection.DeleteOne(ctx,filter)
-	if e != nil {
-		log.Fatal(e)
-	}
+	logError(e)
 	json.NewEncoder(res).Encode(&result)
 }
 
