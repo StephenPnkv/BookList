@@ -10,18 +10,16 @@ import (
 	"time"
 	"log"
 	"context"
-	//"os"
+	"os"
 	"net/http"
 	"github.com/gorilla/mux"
 	"encoding/json"
 	"strconv"
 	"github.com/subosito/gotenv"
-	//"github.com/lib/pq"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
     "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
-	//"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 type Book struct {
@@ -31,6 +29,7 @@ type Book struct {
 	Year string 			`bson:"year,omitempty" json:"year"`
 }
 
+
 var books []Book 
 
 func logFatal(err error){
@@ -39,9 +38,15 @@ func logFatal(err error){
 	}
 }
 
+//Load env variables
+var mongoURI, dbName, colName, port string 
 
 func init(){
 	gotenv.Load()
+	mongoURI = os.Getenv("MONGO_URI")
+	dbName = os.Getenv("DBNAME")
+	colName = os.Getenv("COLLECTION_NAME")
+	port = os.Getenv("PORT")
 }
 
 
@@ -50,7 +55,7 @@ func getMongoDBConnection()(*mongo.Client,error){
 	//client and error.
 
 	//Connect to client
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+	clientOptions := options.Client().ApplyURI(mongoURI)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	
 	if err != nil{
@@ -65,7 +70,7 @@ func getMongoDBConnection()(*mongo.Client,error){
 	return client, err 
 }
 
-func getMongoDBCollection(DBName , CollectionName string)(*mongo.Collection, error){
+func getMongoDBCollection()(*mongo.Collection, error){
 	//Function establishes a connection to mongodb and returns the collection and error.
 
 	client, err := getMongoDBConnection()
@@ -73,7 +78,7 @@ func getMongoDBCollection(DBName , CollectionName string)(*mongo.Collection, err
 		log.Fatal(err)
 	}
 
-	collection := client.Database(DBName).Collection(CollectionName)
+	collection := client.Database(dbName).Collection(colName)
 	return collection, err 
 }
 
@@ -81,6 +86,9 @@ func main(){
 
 	fmt.Println("Starting server. . .")
 	//Create router instance
+	fmt.Printf("Database name: %s, Collection name: %s\nMongoURI: %s\n",
+			dbName,colName,mongoURI)
+
 	router := mux.NewRouter() 
 
 	//Create routes
@@ -91,14 +99,13 @@ func main(){
 	router.HandleFunc("/books/{id}", removeBook).Methods("DELETE")
 
 	//Create server and bind to port
-	port := fmt.Sprintf(":%d",8000)
-	fmt.Printf("Listening on port %s", port)
+	fmt.Printf("Listening on port %s\n", port)
 	http.ListenAndServe(port,router)
 }
 
 func getBooks(res http.ResponseWriter, req *http.Request){
 	res.Header().Add("content-type", "application/json")
-	collection, err := getMongoDBCollection("BookList","Books")
+	collection, err := getMongoDBCollection()
 	var allBooks []Book 
 	if err != nil {
 		log.Fatal(err)
@@ -130,9 +137,9 @@ func addBook(res http.ResponseWriter, req *http.Request){
 
 	var book Book 
 	json.NewDecoder(req.Body).Decode(&book)
-	fmt.Printf("ID: %d | title: %s | author: %s | year: %s\n", book.ID, book.Title, book.Author, book.Year)
+	fmt.Printf("Added Book - ID: %d | title: %s | author: %s | year: %s\n", book.ID, book.Title, book.Author, book.Year)
 
-	collection, err := getMongoDBCollection("BookList","Books")
+	collection, err := getMongoDBCollection()
 	if err != nil{
 		log.Fatal(err)
 	}
@@ -151,7 +158,7 @@ func getBook(res http.ResponseWriter, req *http.Request){
 	id, _ := strconv.Atoi(params["id"])
 
 	filter := bson.D{primitive.E{Key: "id", Value: id}}
-	collection, err := getMongoDBCollection("BookList","Books")
+	collection, err := getMongoDBCollection()
 	if err != nil{
 		log.Fatal(err)
 	}
@@ -172,6 +179,8 @@ func updateBook(res http.ResponseWriter, req *http.Request){
 	var book Book
 	
 	json.NewDecoder(req.Body).Decode(&book)
+	fmt.Printf("Updated Book - ID: %d | title: %s | author: %s | year: %s\n", book.ID, book.Title, book.Author, book.Year)
+
 	params := mux.Vars(req)
 	id, _ := strconv.Atoi(params["id"])
 
@@ -185,7 +194,7 @@ func updateBook(res http.ResponseWriter, req *http.Request){
 			}},
 	}
 	
-	collection, err := getMongoDBCollection("BookList","Books")
+	collection, err := getMongoDBCollection()
 	if err != nil{
 		log.Fatal(err)
 	}
@@ -209,8 +218,9 @@ func removeBook(res http.ResponseWriter, req *http.Request){
 	params := mux.Vars(req) 
 	id, _ := strconv.Atoi(params["id"])
 	filter := bson.D{{"id", id}}
+	fmt.Printf("Removed Book - ID: %d\n", id)
 
-	collection, err := getMongoDBCollection("BookList","Books")
+	collection, err := getMongoDBCollection()
 	if err != nil {
 		log.Fatal(err)
 	}
